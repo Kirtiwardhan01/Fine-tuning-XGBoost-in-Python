@@ -1,0 +1,73 @@
+(Source:https://towardsdatascience.com/fine-tuning-xgboost-in-python-like-a-boss-b4543ed8b1e)
+
+If you have big datasets, and you run a naive grid search on 5 different parameters and having for each of them 5 possible values, 
+then you’ll have 5⁵ =3,125 iterations to go. If one iteration takes 10 minutes to run, 
+you’ll have more than 21 days to wait before getting your parameters 
+I suppose here that you made correctly your job of feature engineering first. 
+Specifically with categorical features, since XGBoost does not take categorical features in input
+
+1. Train-test split, evaluation metric and early stopping
+Before going in the parameters optimization, first spend some time to design the diagnosis framework of the model.
+XGBoost Python api provides a method to assess the incremental performance by the incremental number of trees. 
+It uses two arguments: 
+“eval_set” — usually Train and Test sets — and the associated 
+“eval_metric” to measure your error on these evaluation sets
+
+eval_set = [(X_train, y_train), (X_test, y_test)]
+eval_metric = ["auc","error"]
+%time model.fit(X_train, y_train, eval_metric=eval_metric, eval_set=eval_set, verbose=True)
+
+
+Time to plot the results:
+XGBoost Classification error, Classification error (Train and Test)
+
+On the classification error plot: 
+it looks like our model is learning a lot until 350 iterations, 
+then the error decreases very slowly. 
+This reflects on the test set, where we don’t necessarily see performance as the number of iterations increases from 350. 
+With this you can already think about cutting after 350 trees, and save time for future parameter tuning
+
+
+2. Time to fine-tune our model
+model = XGBClassifier(silent=False, 
+                      scale_pos_weight=1,
+                      learning_rate=0.01,  
+                      colsample_bytree = 0.4,
+                      subsample = 0.8,
+                      objective='binary:logistic', 
+                      n_estimators=1000, 
+                      reg_alpha = 0.3,
+                      max_depth=4, 
+                      gamma=10)
+
+Where to start when you haven’t ran any model yet?
+
+1. Fill reasonable values for key inputs:
+learning_rate: 0.01
+n_estimators: 100 if the size of your data is high, 1000 is if it is medium-low
+max_depth: 3
+subsample: 0.8
+colsample_bytree: 1
+gamma: 1
+
+2. Run model.fit(eval_set, eval_metric) and diagnose your first run, specifically the n_estimators parameter
+
+3. Optimize max_depth parameter. It represents the depth of each tree, which is the maximum number of different features used in each tree. 
+I recommend going from a low max_depth (3 for instance) and then increasing it incrementally by 1, 
+and stopping when there’s no performance gain of increasing it. This will help simplify your model and avoid overfitting
+
+4. Now play around with the learning rate and the features that avoids overfitting:
+      a. learning_rate: usually between 0.1 and 0.01. If you’re focused on performance and have time in front of you, 
+      decrease incrementally the learning rate while increasing the number of trees
+      
+      b.subsample, which is for each tree the % of rows taken to build the tree. I recommend not taking out too many rows, 
+      as performance will drop a lot. Take values from 0.8 to 1
+      
+      c. colsample_bytree: number of columns used by each tree. In order to avoid some columns to take too much credit for the prediction 
+      take out a good proportion of columns. Values from 0.3 to 0.8 if you have many columns (especially if you did one-hot encoding), 
+      or 0.8 to 1 if you only have a few columns.
+
+      d. gamma: usually misunderstood parameter, it acts as a regularization parameter. Either 0, 1 or 5
+      
+The parameter base_score didn’t give me anything. Either it’s not relevant for convergence, or I don’t know how to use it
+
