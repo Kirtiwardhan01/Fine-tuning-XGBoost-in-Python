@@ -1,0 +1,11 @@
+(Source: https://towardsdatascience.com/fine-tuning-xgboost-in-python-like-a-boss-b4543ed8b1e)
+
+Compare two models’ predictions, where one model uses one more variable than the other model. 
+Specifically compare the data where the predictions are different (predicted classes are different)
+
+Remember that in a real life project, if you industrialize an XGBoost model today, tomorrow you will want to improve the model, 
+for instance by adding new features to the model or simply new data. 
+
+To compare the two models, plot the probability of belonging to class 1 (risk = proba > 50%)
+You will know how your new model compares to the old one, where they are similar and where they are different
+Similarly, plot the two feature_importance tables along each other and compare the most relevant features in both model
